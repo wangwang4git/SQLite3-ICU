@@ -42,11 +42,3 @@ int main(int argc, char** argv)
 
     return 0;
 }
-
-
-
-// 中文检测
-UBool detectHan(URegularExpression* reExp, UChar* text)
-{
-
-}

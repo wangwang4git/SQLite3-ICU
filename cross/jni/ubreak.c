@@ -264,7 +264,7 @@ void printList(Node *pHead)
     while(NULL != pHead)
     {
       // printf("string[%2d..%2d] \"%s, isHan = %d, len = %ld\"\n", pHead->start, pHead->end, pHead->word, pHead->isHan, strlen(pHead->word));
-      printf("string[%2d..%2d] \"%s, len = %ld\"\n", pHead->start, pHead->end, pHead->word, strlen(pHead->word));
+      printf("string[%2d..%2d] \"%s, len = %d\"\n", pHead->start, pHead->end, pHead->word, strlen(pHead->word));
       pHead = pHead->next;
     }
   }

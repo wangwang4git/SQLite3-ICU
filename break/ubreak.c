@@ -77,7 +77,7 @@ void printAt(UBreakIterator* boundary, int32_t pos , UChar* str) {
 
 int main( void ) {
   UBreakIterator *boundary;
-  char           cStringToExamine[] = "  Aaa bbb ccc. Ddd eee fff.中国深圳。腾讯SNG。安卓123消息。";
+  char           cStringToExamine[] = "共产党世界中国深圳。腾讯北京SNG。安卓123消息。  Aaa bbb ccc. Ddd eee fff.";
   UChar          stringToExamine[sizeof(cStringToExamine)+1]; 
   UErrorCode     status = U_ZERO_ERROR;
 
@@ -90,6 +90,7 @@ int main( void ) {
 
   /*print each sentence in forward and reverse order*/
   // en_US
+  // zh_CN
   boundary = ubrk_open(UBRK_SENTENCE, "zh_CN", stringToExamine,
 		       -1, &status);
   if (U_FAILURE(status)) {
@@ -105,7 +106,8 @@ int main( void ) {
 
   /*print each word in order*/
   // en_US
-  boundary = ubrk_open(UBRK_WORD, "zh_CN", stringToExamine,
+  // zh_CN
+  boundary = ubrk_open(UBRK_CHARACTER, "zh_CN", stringToExamine,
 		       u_strlen(stringToExamine), &status);
   printf("\n----- Word Boundaries, forward: -----------\n"); 
   printEachForward(boundary, stringToExamine);

@@ -19,6 +19,8 @@
 *.so
 *.so.*
 *.dylib
+/cross/libs/*
+/cross/libs/
 
 # Executables
 *.exe
@@ -27,6 +29,7 @@
 *.i*86
 *.x86_64
 *.hex
+/cross/obj/
 
 # Debug files
 *.dSYM/
