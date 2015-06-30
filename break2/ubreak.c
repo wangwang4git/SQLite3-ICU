@@ -10,31 +10,85 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
 #include <unicode/ustring.h>
 #include <unicode/ubrk.h>
+#include <unicode/uregex.h>
 
 typedef struct Node
 {
   char* word;
   int start;
   int end;
+  int isHan;
   struct Node* next;
 } Node;
 
-static char* input;
+static char* input = NULL;
 static Node* pList = NULL;
+static URegularExpression* reExp = NULL;
 
 void processOptions(int argc, char** argv);
 void printUsage();
 
 int initList(Node** pNode);
-int insertLastList(Node **pNode, char* word, int start, int end);
+int insertLastList(Node **pNode, char* word, int start, int end, int isHan);
 void clearList(Node *pHead);
 void printList(Node *pHead);
 
 void printTextRange(UChar* str, int32_t start, int32_t end);
-void printEachForward( UBreakIterator* boundary, UChar* str);
+void printEachForward(UBreakIterator* boundary, UChar* str);
+
+void initRegExp()
+{
+  char* pattern = "\\p{script=han}{1}";
+
+  UErrorCode status = U_ZERO_ERROR;
+  UParseError parseErr;
+  reExp = uregex_openC(pattern, 0, &parseErr, &status);
+  if (U_FAILURE(status))
+  {
+      printf("error in pattern: \"%s\" at position %d\n", u_errorName(status), parseErr.offset);
+      exit(-1);
+  }
+}
+
+void closeRegExp()
+{
+  if (reExp != NULL)
+  {
+    uregex_close(reExp);
+  }
+}
+
+// 中文检测
+int detectHan(char* text)
+{
+    if (text == NULL)
+    {
+      return 0;
+    }
+
+    UChar stringToExamine[strlen(text) + 1];
+    u_uastrcpy(stringToExamine, text);
+
+    UErrorCode status = U_ZERO_ERROR;
+    uregex_setText(reExp, stringToExamine, u_strlen(stringToExamine), &status);
+    if (U_FAILURE(status))
+    {
+        printf("uregex_setUText error: %s\n", u_errorName(status));
+        exit(1);
+    }
+
+    status = U_ZERO_ERROR;
+    UBool doMatch = uregex_matches64(reExp, 0, &status);
+    if (U_FAILURE(status))
+    {
+        printf("uregex_matches64 error: %s\n", u_errorName(status));
+        exit(1);
+    }
+
+    return doMatch == TRUE ? 1 : 0;
+}
 
 int main(int argc, char** argv)
 {
@@ -46,8 +100,9 @@ int main(int argc, char** argv)
 
   UBreakIterator* boundary;
   UErrorCode status = U_ZERO_ERROR;
-  UChar stringToExamine[strlen(input) + 1]; 
+  UChar stringToExamine[strlen(input) + 1];
 
+  initRegExp();
   initList(&pList);
   u_uastrcpy(stringToExamine, input);
   boundary = ubrk_open(UBRK_WORD, "zh_CN", stringToExamine, u_strlen(stringToExamine), &status);
@@ -57,13 +112,14 @@ int main(int argc, char** argv)
     exit(1);
   }
 
-  printf("\n----- Word Boundaries: -----------\n"); 
+  printf("\n----- Word Boundaries: -----------\n");
   printEachForward(boundary, stringToExamine);
 
   printList(pList);
 
   ubrk_close(boundary);
-  // clearList(pList);
+  clearList(pList);
+  closeRegExp();
 
   printf("\nEnd of boundary analysis\n");
 
@@ -75,7 +131,10 @@ void processOptions(int argc, char** argv)
   // for test
   if (argc == 1)
   {
+    // 目前WeChat的活跃用户数有4,000,000,000左右。
+    // QQ智能终端月活跃账户达到6.03亿，比去年同期增长23%。
     input = "QQ智能终端月活跃账户达到6.03亿，比去年同期增长23%。";
+
     return;
   }
 
@@ -157,7 +216,7 @@ int initList(Node** pNode)
   return 0;
 }
 
-int insertLastList(Node **pNode, char* word, int start, int end)
+int insertLastList(Node **pNode, char* word, int start, int end, int isHan)
 {
   Node* pHead = *pNode;
   Node* pTmp = pHead;
@@ -173,6 +232,7 @@ int insertLastList(Node **pNode, char* word, int start, int end)
   pInsert->word = word;
   pInsert->start = start;
   pInsert->end = end;
+  pInsert->isHan = isHan;
 
   while (pTmp->next != NULL)
   {
@@ -191,7 +251,7 @@ void clearList(Node *pHead)
     return;
   }
 
-  Node *pNext; 
+  Node *pNext;
   while(pHead->next != NULL)
   {
     pNext = pHead->next;
@@ -212,7 +272,7 @@ void printList(Node *pHead)
     pHead = pHead->next;
     while(NULL != pHead)
     {
-      printf("string[%2d..%2d] \"%s\"\n", pHead->start, pHead->end, pHead->word); 
+      printf("string[%2d..%2d] \"%s, isHan = %d, len = %ld\"\n", pHead->start, pHead->end, pHead->word, pHead->isHan, strlen(pHead->word));
       pHead = pHead->next;
     }
   }
@@ -227,7 +287,7 @@ void printTextRange(UChar* str, int32_t start, int32_t end)
   str[end] = 0;
   u_austrncpy(charBuf, str + start, sizeof(charBuf) - 1);
   charBuf[sizeof(charBuf) - 1] = 0;
-  // printf("string[%2d..%2d] \"%s\"\n", start, end - 1, charBuf); 
+  // printf("string[%2d..%2d] \"%s\"\n", start, end - 1, charBuf);
 
   char* word = malloc(strlen(charBuf) + 1);
   if (word == NULL)
@@ -237,12 +297,13 @@ void printTextRange(UChar* str, int32_t start, int32_t end)
   }
   memset(word, 0, strlen(charBuf) + 1);
   strcpy(word, charBuf);
-  insertLastList(&pList, word, start, end - 1);
+  int isHan = detectHan(word);
+  insertLastList(&pList, word, start, end - 1, isHan);
 
   str[end] = savedEndChar;
 }
 
-void printEachForward( UBreakIterator* boundary, UChar* str)
+void printEachForward(UBreakIterator* boundary, UChar* str)
 {
   int32_t end;
   int32_t start = ubrk_first(boundary);
