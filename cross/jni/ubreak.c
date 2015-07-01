@@ -70,6 +70,7 @@ int main(int argc, char** argv)
   if (U_FAILURE(status) || stringToExamine[length] != 0)
   {
     printf("error in u_strToLower(English locale) = %ld error = %s\n", length, u_errorName(status));
+    exit(1);
   }
 
   status = U_ZERO_ERROR;
