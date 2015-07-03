@@ -21,6 +21,8 @@
 *.dylib
 /cross/libs/*
 /cross/libs/
+/FTSJNI/libs/*
+/FTSJNI/libs/
 
 # Executables
 *.exe
@@ -30,6 +32,7 @@
 *.x86_64
 *.hex
 /cross/obj/
+/FTSJNI/obj/
 
 # Debug files
 *.dSYM/

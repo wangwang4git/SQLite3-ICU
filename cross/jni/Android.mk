@@ -18,7 +18,7 @@ include $(CLEAR_VARS)
 
 LOCAL_LDLIBS := -L. -licuuc -licui18n
 
-LOCAL_MODULE    := ubreak.out
+LOCAL_MODULE := ubreak.out
 LOCAL_SRC_FILES := ubreak.c
 
 include $(BUILD_EXECUTABLE)
