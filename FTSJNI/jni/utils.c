@@ -1,6 +1,6 @@
 #include "include/utils.h"
 
-#define TAG "FTSJNI"
+#define TAG "FTSDATATBASEDAO"
 
 void logInfo(char* msg)
 {

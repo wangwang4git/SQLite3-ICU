@@ -20,17 +20,8 @@ jint Java_com_tencent_mobileqq_persistence_FTSDatatbaseDao_initFTS(JNIEnv* env, 
     if (SQLITE_OK != errCode)
     {
         logError("Can't open database IndexQQMsg.db...");
-        sqlite3_close(db);
-        return errCode;
-    }
+        logError(sqlite3_errmsg(db));
 
-    char* sql = "CREATE VIRTUAL TABLE IF NOT EXIST IndexMsg USING fts3(uin, istroop, uniseq, msg, tokenize=qq);";
-    char* zErrMsg = NULL;
-    errCode = sqlite3_exec(db, sql, NULL, NULL, &zErrMsg);
-    if (SQLITE_OK != errCode)
-    {
-        logError("Can't create virtual table IndexMsg...");
-        logError(zErrMsg);
         sqlite3_close(db);
         return errCode;
     }
@@ -39,6 +30,19 @@ jint Java_com_tencent_mobileqq_persistence_FTSDatatbaseDao_initFTS(JNIEnv* env, 
     if (SQLITE_OK != errCode)
     {
         logError("Can't register qq tokenizer...");
+        logError(sqlite3_errmsg(db));
+
+        sqlite3_close(db);
+        return errCode;
+    }
+
+    char* sql = "CREATE VIRTUAL TABLE IF NOT EXISTS IndexMsg USING fts3(uin, istroop, uniseq, msg, tokenize=qq);";
+    errCode = sqlite3_exec(db, sql, NULL, NULL, NULL);
+    if (SQLITE_OK != errCode)
+    {
+        logError("Can't create virtual table IndexMsg...");
+        logError(sqlite3_errmsg(db));
+
         sqlite3_close(db);
         return errCode;
     }
@@ -48,10 +52,35 @@ jint Java_com_tencent_mobileqq_persistence_FTSDatatbaseDao_initFTS(JNIEnv* env, 
 }
 
 
-jint Java_com_tencent_mobileqq_persistence_FTSDatatbaseDao_insertFTS(JNIEnv* env, jobject thiz, jlong uin, jint istroop, jlong uniseq, jstring msg)
+jint Java_com_tencent_mobileqq_persistence_FTSDatatbaseDao_insertFTS(JNIEnv* env, jobject thiz, jlong juin, jint jistroop, jlong juniseq, jstring jmsg)
 {
+    long long uin = (long long) juin;
+    int istroop = (int) jistroop;
+    long long uniseq = (long long) juniseq;
+    const char* msg = (*env)->GetStringUTFChars(env, jmsg, NULL);
+
+    sqlite3_stmt* pStmt = NULL;
+    char* zSql = "INSERT INTO IndexMsg(uin, istroop, uniseq, msg) VALUES(?, ?, ?, ?);";
+
+    int rc = sqlite3_prepare_v2(db, zSql, -1, &pStmt, 0);
+    if (rc != SQLITE_OK)
+    {
+        logError(sqlite3_errmsg(db));
+        return rc;
+    }
+
+    sqlite3_bind_int64(pStmt, 1, uin);
+    sqlite3_bind_int(pStmt, 2, istroop);
+    sqlite3_bind_int64(pStmt, 3, uniseq);
+    sqlite3_bind_text(pStmt, 4, msg, -1, SQLITE_STATIC);
+    sqlite3_step(pStmt);
+    int ret = sqlite3_finalize(pStmt);
+
+    (*env)->ReleaseStringUTFChars(env, jmsg, msg);
+
     logInfo("FTS insert...");
-    return 0;
+
+    return ret;
 }
 
 jint Java_com_tencent_mobileqq_persistence_FTSDatatbaseDao_closeFTS(JNIEnv* env, jobject thiz)
@@ -67,6 +96,8 @@ jint Java_com_tencent_mobileqq_persistence_FTSDatatbaseDao_closeFTS(JNIEnv* env,
 
 int sqlite3_register_qq_tokenizer()
 {
+    logInfo("Register qq tokenizer...");
+
     sqlite3_tokenizer_module* p = &icuQQTokenizerModule;
     sqlite3_stmt* pStmt = NULL;
     char* zSql = "SELECT fts3_tokenizer(?, ?)";
@@ -74,6 +105,7 @@ int sqlite3_register_qq_tokenizer()
     int rc = sqlite3_prepare_v2(db, zSql, -1, &pStmt, 0);
     if (rc != SQLITE_OK)
     {
+        logError(sqlite3_errmsg(db));
         return rc;
     }
 
