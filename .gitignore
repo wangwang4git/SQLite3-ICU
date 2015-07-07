@@ -23,6 +23,8 @@
 /cross/libs/
 /FTSJNI/libs/*
 /FTSJNI/libs/
+/FTSJNI2/libs/*
+/FTSJNI2/libs/
 
 # Executables
 *.exe
@@ -33,6 +35,7 @@
 *.hex
 /cross/obj/
 /FTSJNI/obj/
+/FTSJNI2/obj/
 
 # Debug files
 *.dSYM/

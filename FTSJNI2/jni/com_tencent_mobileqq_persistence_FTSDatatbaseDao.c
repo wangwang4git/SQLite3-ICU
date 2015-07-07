@@ -10,6 +10,7 @@
 #define DB_FILE "/data/data/com.tencent.mobileqq/databases/IndexQQMsg.db"
 
 static sqlite3* db = NULL;
+static sqlite3_stmt* stmt = NULL;
 
 extern char* getSegmentedMsg(char* msg);
 
@@ -39,6 +40,7 @@ jint Java_com_tencent_mobileqq_persistence_FTSDatatbaseDao_initFTS(JNIEnv* env, 
 }
 
 
+// 事物写，参数绑定留待后续
 jint Java_com_tencent_mobileqq_persistence_FTSDatatbaseDao_insertFTS(JNIEnv* env, jobject thiz, jlong juin, jint jistroop, jlong juniseq, jstring jmsg)
 {
     long long uin = (long long) juin;
@@ -55,29 +57,33 @@ jint Java_com_tencent_mobileqq_persistence_FTSDatatbaseDao_insertFTS(JNIEnv* env
     }
     logInfo("FTS insert: segments = ", segments);
 
-    sqlite3_stmt* pStmt = NULL;
-    char* zSql = "INSERT INTO IndexMsg(uin, istroop, uniseq, msg) VALUES(?, ?, ?, ?);";
-
-    int rc = sqlite3_prepare_v2(db, zSql, -1, &pStmt, 0);
-    if (rc != SQLITE_OK)
+    // 创建sqlite3_stmt
+    if (stmt = NULL)
     {
-        logError(sqlite3_errmsg(db), NULL);
-        return rc;
+        char* zSql = "INSERT INTO IndexMsg(uin, istroop, uniseq, msg) VALUES(?, ?, ?, ?);";
+        int rc = sqlite3_prepare_v2(db, zSql, -1, &stmt, 0);
+        if (rc != SQLITE_OK)
+        {
+            logError(sqlite3_errmsg(db), NULL);
+            return rc;
+        }
     }
 
-    sqlite3_bind_int64(pStmt, 1, uin);
-    sqlite3_bind_int(pStmt, 2, istroop);
-    sqlite3_bind_int64(pStmt, 3, uniseq);
-    sqlite3_bind_text(pStmt, 4, segments, -1, SQLITE_STATIC);
-    sqlite3_step(pStmt);
-    int ret = sqlite3_finalize(pStmt);
+    sqlite3_bind_int64(stmt, 1, uin);
+    sqlite3_bind_int(stmt, 2, istroop);
+    sqlite3_bind_int64(stmt, 3, uniseq);
+    sqlite3_bind_text(stmt, 4, segments, -1, SQLITE_STATIC);
+
+    sqlite3_step(stmt);
+
+    sqlite3_reset(stmt);
 
     free(segments);
     (*env)->ReleaseStringUTFChars(env, jmsg, msg);
 
     logInfo("FTS insert...", NULL);
 
-    return ret;
+    return 0;
 }
 
 jint Java_com_tencent_mobileqq_persistence_FTSDatatbaseDao_closeFTS(JNIEnv* env, jobject thiz)
@@ -85,8 +91,38 @@ jint Java_com_tencent_mobileqq_persistence_FTSDatatbaseDao_closeFTS(JNIEnv* env,
     if (db != NULL)
     {
         sqlite3_close(db);
+        db = NULL;
+    }
+
+    if (stmt != NULL)
+    {
+        sqlite3_finalize(stmt);
+        stmt = NULL;
     }
 
     logInfo("FTS close...", NULL);
     return 0;
+}
+
+jstring Java_com_tencent_mobileqq_persistence_FTSDatatbaseDao_wordSegment(JNIEnv* env, jclass clazz, jstring jsearch)
+{
+    const char* msg = (*env)->GetStringUTFChars(env, jsearch, NULL);
+
+    // 分词，再组装
+    char* segments = getSegmentedMsg(msg);
+    if (NULL == segments || strlen(segments) == 0)
+    {
+        logWarn("FTS word segment: msg is null...", NULL);
+        return NULL;
+    }
+    // logInfo("FTS word segment: segments = ", segments);
+
+    jstring jsegments = (*env)->NewStringUTF(env, segments);
+
+    free(segments);
+    (*env)->ReleaseStringUTFChars(env, jsearch, msg);
+
+    logInfo("FTS word segment...", NULL);
+
+    return jsegments;
 }

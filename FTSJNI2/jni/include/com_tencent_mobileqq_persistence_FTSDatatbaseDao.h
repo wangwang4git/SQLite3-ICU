@@ -31,6 +31,14 @@ JNIEXPORT jint JNICALL Java_com_tencent_mobileqq_persistence_FTSDatatbaseDao_ins
 JNIEXPORT jint JNICALL Java_com_tencent_mobileqq_persistence_FTSDatatbaseDao_closeFTS
   (JNIEnv *, jobject);
 
+/*
+ * Class:     com_tencent_mobileqq_persistence_FTSDatatbaseDao
+ * Method:    wordSegment
+ * Signature: (Ljava/lang/String;)Ljava/lang/String;
+ */
+JNIEXPORT jstring JNICALL Java_com_tencent_mobileqq_persistence_FTSDatatbaseDao_wordSegment
+  (JNIEnv *, jclass, jstring);
+
 #ifdef __cplusplus
 }
 #endif
