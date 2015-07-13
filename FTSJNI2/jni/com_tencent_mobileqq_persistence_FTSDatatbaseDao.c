@@ -25,7 +25,7 @@ jint Java_com_tencent_mobileqq_persistence_FTSDatatbaseDao_initFTS(JNIEnv* env, 
         return errCode;
     }
 
-    char* sql = "CREATE VIRTUAL TABLE IF NOT EXISTS IndexMsg USING fts3(uin, istroop, uniseq, msg);";
+    char* sql = "CREATE VIRTUAL TABLE IF NOT EXISTS IndexMsg USING fts3(uin, istroop, time, shmsgseq, msg, msgindex);";
     errCode = sqlite3_exec(db, sql, NULL, NULL, NULL);
     if (SQLITE_OK != errCode)
     {
@@ -40,12 +40,13 @@ jint Java_com_tencent_mobileqq_persistence_FTSDatatbaseDao_initFTS(JNIEnv* env, 
 }
 
 
-// 事物写，参数绑定留待后续
-jint Java_com_tencent_mobileqq_persistence_FTSDatatbaseDao_insertFTS(JNIEnv* env, jobject thiz, jlong juin, jint jistroop, jlong juniseq, jstring jmsg)
+// 事务写，参数绑定留待后续
+jint Java_com_tencent_mobileqq_persistence_FTSDatatbaseDao_insertFTS(JNIEnv* env, jobject thiz, jlong juin, jint jistroop, jlong jtime, jlong jshmsgseq, jstring jmsg)
 {
     long long uin = (long long) juin;
     int istroop = (int) jistroop;
-    long long uniseq = (long long) juniseq;
+    long long msgtime = (long long) jtime;
+    long long shmsgseq = (long long) jshmsgseq;
     const char* msg = (*env)->GetStringUTFChars(env, jmsg, NULL);
 
     // 分词，再组装
@@ -58,9 +59,9 @@ jint Java_com_tencent_mobileqq_persistence_FTSDatatbaseDao_insertFTS(JNIEnv* env
     logInfo("FTS insert: segments = ", segments);
 
     // 创建sqlite3_stmt
-    if (stmt = NULL)
+    if (NULL == stmt)
     {
-        char* zSql = "INSERT INTO IndexMsg(uin, istroop, uniseq, msg) VALUES(?, ?, ?, ?);";
+        char* zSql = "INSERT INTO IndexMsg(uin, istroop, time, shmsgseq, msg, msgindex) VALUES(?, ?, ?, ?, ?, ?);";
         int rc = sqlite3_prepare_v2(db, zSql, -1, &stmt, 0);
         if (rc != SQLITE_OK)
         {
@@ -71,8 +72,10 @@ jint Java_com_tencent_mobileqq_persistence_FTSDatatbaseDao_insertFTS(JNIEnv* env
 
     sqlite3_bind_int64(stmt, 1, uin);
     sqlite3_bind_int(stmt, 2, istroop);
-    sqlite3_bind_int64(stmt, 3, uniseq);
-    sqlite3_bind_text(stmt, 4, segments, -1, SQLITE_STATIC);
+    sqlite3_bind_int64(stmt, 3, msgtime);
+    sqlite3_bind_int64(stmt, 4, shmsgseq);
+    sqlite3_bind_text(stmt, 5, msg, -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 6, segments, -1, SQLITE_STATIC);
 
     sqlite3_step(stmt);
 
@@ -111,7 +114,7 @@ jstring Java_com_tencent_mobileqq_persistence_FTSDatatbaseDao_wordSegment(JNIEnv
     // 分词，再组装
     char* segments = getSegmentedMsg(msg);
     if (NULL == segments || strlen(segments) == 0)
-    {
+    {   
         logWarn("FTS word segment: msg is null...", NULL);
         return NULL;
     }

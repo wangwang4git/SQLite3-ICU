@@ -18,10 +18,10 @@ JNIEXPORT jint JNICALL Java_com_tencent_mobileqq_persistence_FTSDatatbaseDao_ini
 /*
  * Class:     com_tencent_mobileqq_persistence_FTSDatatbaseDao
  * Method:    insertFTS
- * Signature: (JIJLjava/lang/String;)I
+ * Signature: (JIJJLjava/lang/String;)I
  */
 JNIEXPORT jint JNICALL Java_com_tencent_mobileqq_persistence_FTSDatatbaseDao_insertFTS
-  (JNIEnv *, jobject, jlong, jint, jlong, jstring);
+  (JNIEnv *, jobject, jlong, jint, jlong, jlong, jstring);
 
 /*
  * Class:     com_tencent_mobileqq_persistence_FTSDatatbaseDao
