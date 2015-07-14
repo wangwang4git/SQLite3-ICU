@@ -25,6 +25,22 @@ JNIEXPORT jint JNICALL Java_com_tencent_mobileqq_persistence_FTSDatatbaseDao_ins
 
 /*
  * Class:     com_tencent_mobileqq_persistence_FTSDatatbaseDao
+ * Method:    queryFTSGroups
+ * Signature: (Ljava/lang/String;Ljava/lang/String;)Ljava/util/ArrayList;
+ */
+JNIEXPORT jobject JNICALL Java_com_tencent_mobileqq_persistence_FTSDatatbaseDao_queryFTSGroups
+  (JNIEnv *, jobject, jstring, jstring);
+
+/*
+ * Class:     com_tencent_mobileqq_persistence_FTSDatatbaseDao
+ * Method:    queryFTSMsgs
+ * Signature: (Ljava/lang/String;Ljava/lang/String;)Ljava/util/ArrayList;
+ */
+JNIEXPORT jobject JNICALL Java_com_tencent_mobileqq_persistence_FTSDatatbaseDao_queryFTSMsgs
+  (JNIEnv *, jobject, jstring, jstring);
+
+/*
+ * Class:     com_tencent_mobileqq_persistence_FTSDatatbaseDao
  * Method:    closeFTS
  * Signature: ()I
  */
