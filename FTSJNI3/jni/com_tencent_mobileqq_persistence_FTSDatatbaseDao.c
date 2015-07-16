@@ -5,7 +5,6 @@
 #include "include/com_tencent_mobileqq_persistence_FTSDatatbaseDao.h"
 #include "include/utils.h"
 #include "include/sqlite3.h"
-#include "include/fts3_tokenizer.h"
 #include "include/base64.h"
 
 // dbName和Java层保持一致
@@ -16,8 +15,6 @@ void qquncompress(sqlite3_context* context, int argc, sqlite3_value** argv);
 
 static sqlite3* db = NULL;
 static sqlite3_stmt* stmt = NULL;
-
-extern char* getSegmentedMsg(char* msg);
 
 jint Java_com_tencent_mobileqq_persistence_FTSDatatbaseDao_initFTS(JNIEnv* env, jobject thiz)
 {
@@ -64,22 +61,14 @@ jint Java_com_tencent_mobileqq_persistence_FTSDatatbaseDao_initFTS(JNIEnv* env, 
 
 
 // 事务写，参数绑定留待后续
-jint Java_com_tencent_mobileqq_persistence_FTSDatatbaseDao_insertFTS(JNIEnv* env, jobject thiz, jlong juin, jint jistroop, jlong jtime, jlong jshmsgseq, jstring jmsg)
+jint Java_com_tencent_mobileqq_persistence_FTSDatatbaseDao_insertFTS(JNIEnv* env, jobject thiz, jlong juin, jint jistroop, jlong jtime, jlong jshmsgseq, jstring jmsg, jstring jmsgindex)
 {
     long long uin = (long long) juin;
     int istroop = (int) jistroop;
     long long msgtime = (long long) jtime;
     long long shmsgseq = (long long) jshmsgseq;
     const char* msg = (*env)->GetStringUTFChars(env, jmsg, NULL);
-
-    // 分词，再组装
-    char* segments = getSegmentedMsg(msg);
-    if (NULL == segments || strlen(segments) == 0)
-    {
-        logWarn("FTS insert: msg is null...", NULL);
-        return SQLITE_OK;
-    }
-    logInfo("FTS insert: segments = ", segments);
+    const char* msgindex = (*env)->GetStringUTFChars(env, jmsgindex, NULL);
 
     // 创建sqlite3_stmt
     if (NULL == stmt)
@@ -105,13 +94,13 @@ jint Java_com_tencent_mobileqq_persistence_FTSDatatbaseDao_insertFTS(JNIEnv* env
 
     sqlite3_bind_text(stmt, 5, msg, -1, SQLITE_STATIC);
 
-    sqlite3_bind_text(stmt, 6, segments, -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 6, msgindex, -1, SQLITE_STATIC);
 
     sqlite3_step(stmt);
 
     sqlite3_reset(stmt);
 
-    free(segments);
+    (*env)->ReleaseStringUTFChars(env, jmsgindex, msgindex);
     (*env)->ReleaseStringUTFChars(env, jmsg, msg);
 
     logInfo("FTS insert...", NULL);
@@ -288,29 +277,6 @@ jint Java_com_tencent_mobileqq_persistence_FTSDatatbaseDao_closeFTS(JNIEnv* env,
 
     logInfo("FTS close...", NULL);
     return 0;
-}
-
-jstring Java_com_tencent_mobileqq_persistence_FTSDatatbaseDao_wordSegment(JNIEnv* env, jclass clazz, jstring jsearch)
-{
-    const char* msg = (*env)->GetStringUTFChars(env, jsearch, NULL);
-
-    // 分词，再组装
-    char* segments = getSegmentedMsg(msg);
-    if (NULL == segments || strlen(segments) == 0)
-    {
-        logWarn("FTS word segment: msg is null...", NULL);
-        return NULL;
-    }
-    // logInfo("FTS word segment: segments = ", segments);
-
-    jstring jsegments = (*env)->NewStringUTF(env, segments);
-
-    free(segments);
-    (*env)->ReleaseStringUTFChars(env, jsearch, msg);
-
-    // logInfo("FTS word segment...", NULL);
-
-    return jsegments;
 }
 
 void qqcompress(sqlite3_context* context, int argc, sqlite3_value** argv)
