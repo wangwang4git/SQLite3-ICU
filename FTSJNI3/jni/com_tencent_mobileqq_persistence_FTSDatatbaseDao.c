@@ -5,7 +5,8 @@
 #include "include/com_tencent_mobileqq_persistence_FTSDatatbaseDao.h"
 #include "include/utils.h"
 #include "include/sqlite3.h"
-#include "include/base64.h"
+#include "include/qqcompress.h"
+
 
 // dbName和Java层保持一致
 #define DB_FILE "/data/data/com.tencent.mobileqq/databases/IndexQQMsg.db"
@@ -46,6 +47,7 @@ jint Java_com_tencent_mobileqq_persistence_FTSDatatbaseDao_initFTS(JNIEnv* env, 
     }
 
     char* sql = "CREATE VIRTUAL TABLE IF NOT EXISTS IndexMsg USING fts4(uin, istroop, time, shmsgseq, msg, msgindex, compress=qqcompress, uncompress=qquncompress);";
+    // char* sql = "CREATE VIRTUAL TABLE IF NOT EXISTS IndexMsg USING fts4(uin, istroop, time, shmsgseq, msg, msgindex);";
     errCode = sqlite3_exec(db, sql, NULL, NULL, NULL);
     if (SQLITE_OK != errCode)
     {
@@ -54,6 +56,9 @@ jint Java_com_tencent_mobileqq_persistence_FTSDatatbaseDao_initFTS(JNIEnv* env, 
         sqlite3_close(db);
         return errCode;
     }
+
+    const char* version = zlibVersion();
+    logInfo("FTS init zlib version = ", version);
 
     logInfo("FTS init...", NULL);
     return 0;
@@ -281,26 +286,26 @@ jint Java_com_tencent_mobileqq_persistence_FTSDatatbaseDao_closeFTS(JNIEnv* env,
 
 void qqcompress(sqlite3_context* context, int argc, sqlite3_value** argv)
 {
-    const char* msg = sqlite3_value_text(argv[0]);
+    int len = sqlite3_value_bytes(argv[0]);
+    unsigned char* msg = sqlite3_malloc(sizeof(unsigned char) * len);
+    memcpy(msg, sqlite3_value_blob(argv[0]), len);
 
-    // logInfo("compress before: ", msg);
+    unsigned long destlen;
+    unsigned char* msg2 = qq_compress(msg, &destlen, len);
+    sqlite3_free(msg);
 
-    char* msg2 = base64_encode(msg);
-
-    // logInfo("compress after: ", msg2);
-
-    sqlite3_result_text(context, msg2, strlen(msg2), sqlite3_free);
+    sqlite3_result_blob(context, msg2, destlen, sqlite3_free);
 }
 
 void qquncompress(sqlite3_context* context, int argc, sqlite3_value** argv)
 {
-    const char* msg = sqlite3_value_text(argv[0]);
+    int len = sqlite3_value_bytes(argv[0]);
+    unsigned char* msg = sqlite3_malloc(sizeof(unsigned char) * len);
+    memcpy(msg, sqlite3_value_blob(argv[0]), len);
 
-    // logInfo("uncompress before: ", msg);
+    unsigned long destlen;
+    unsigned char* msg2 = qq_uncompress(msg, &destlen, len);
+    sqlite3_free(msg);
 
-    char* msg2 = base64_decode(msg);
-
-    // logInfo("uncompress after: ", msg2);
-
-    sqlite3_result_text(context, msg2, strlen(msg2), sqlite3_free);
+    sqlite3_result_blob(context, msg2, destlen, sqlite3_free);
 }
