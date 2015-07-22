@@ -3,7 +3,7 @@
 #define TAG "FTSDATATBASEDAO"
 
 // 变长参数实现，留待以后吧～
-void logInfo(char* msg1, char* msg2)
+void logInfo(const char* msg1, const char* msg2)
 {
     if (msg2 == NULL)
     {
@@ -15,7 +15,7 @@ void logInfo(char* msg1, char* msg2)
     }
 }
 
-void logWarn(char* msg1, char* msg2)
+void logWarn(const char* msg1, const char* msg2)
 {
     if (msg2 == NULL)
     {
@@ -27,7 +27,7 @@ void logWarn(char* msg1, char* msg2)
     }
 }
 
-void logError(char* msg1, char* msg2)
+void logError(const char* msg1, const char* msg2)
 {
     if (msg2 == NULL)
     {

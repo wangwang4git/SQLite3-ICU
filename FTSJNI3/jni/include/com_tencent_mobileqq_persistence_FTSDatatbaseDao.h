@@ -34,10 +34,10 @@ JNIEXPORT jobject JNICALL Java_com_tencent_mobileqq_persistence_FTSDatatbaseDao_
 /*
  * Class:     com_tencent_mobileqq_persistence_FTSDatatbaseDao
  * Method:    queryFTSMsgs
- * Signature: (Ljava/lang/String;Ljava/lang/String;)Ljava/util/ArrayList;
+ * Signature: (Ljava/lang/String;Ljava/lang/String;JI[Ljava/lang/String;)Ljava/util/ArrayList;
  */
 JNIEXPORT jobject JNICALL Java_com_tencent_mobileqq_persistence_FTSDatatbaseDao_queryFTSMsgs
-  (JNIEnv *, jobject, jstring, jstring);
+  (JNIEnv *, jobject, jstring, jstring, jlong, jint, jobjectArray);
 
 /*
  * Class:     com_tencent_mobileqq_persistence_FTSDatatbaseDao

@@ -28,6 +28,15 @@ jint Java_com_tencent_mobileqq_persistence_FTSDatatbaseDao_initFTS(JNIEnv* env, 
         return errCode;
     }
 
+    errCode = sqlite3_exec(db, "PRAGMA cache_size=4000;", NULL, NULL, NULL);
+    if (SQLITE_OK != errCode)
+    {
+        logError("Can't set PRAGMA cache_size = 4000, ", sqlite3_errmsg(db));
+
+        sqlite3_close(db);
+        return errCode;
+    }
+
     errCode = sqlite3_create_function(db, "qqcompress", 1, SQLITE_UTF8, NULL, qqcompress, NULL, NULL);
     if (SQLITE_OK != errCode)
     {
@@ -184,13 +193,16 @@ jobject Java_com_tencent_mobileqq_persistence_FTSDatatbaseDao_queryFTSGroups(JNI
         jobject group_obj = (*env)->NewObject(env, group_clazz, group_init, uin, istroop, counts);
 
         (*env)->CallBooleanMethod(env, list_obj, list_add, group_obj);
+
+        // 避免 local reference table overflow (max=512) 错误
+        (*env)->DeleteLocalRef(env, group_obj);
     }
 
     sqlite3_free_table(result);
     return list_obj;
 }
 
-jobject Java_com_tencent_mobileqq_persistence_FTSDatatbaseDao_queryFTSMsgs(JNIEnv* env, jobject thiz, jstring jsql, jstring jclasspath)
+jobject Java_com_tencent_mobileqq_persistence_FTSDatatbaseDao_queryFTSMsgs(JNIEnv* env, jobject thiz, jstring jsql, jstring jclasspath, jlong juin, jint jistroop, jobjectArray jstringarray)
 {
     // 获取ArrayList class类
     jclass list_clazz = (*env)->FindClass(env, "java/util/ArrayList");
@@ -245,7 +257,21 @@ jobject Java_com_tencent_mobileqq_persistence_FTSDatatbaseDao_queryFTSMsgs(JNIEn
         return list_obj;
     }
 
-    int i;
+    long long queryUin = (long long) juin;
+    int queryIstroop = (int) jistroop;
+
+    jsize len = (*env)->GetArrayLength(env, jstringarray);
+    char** pstr = (char**) malloc(len * sizeof(char*));
+    int i = 0;
+    for (i = 0; i < len; i++)
+    {
+        jstring jstr = (*env)->GetObjectArrayElement(env, jstringarray, i);
+        pstr[i] = (char*)(*env)->GetStringUTFChars(env, jstr, 0);
+
+        // 避免 local reference table overflow (max=512) 错误
+        (*env)->DeleteLocalRef(env, jstr);
+    }
+
     for (i = 0; i < nrows; ++i)
     {
         // 注意：java long和c/c++ long，不一样，小心掉坑里！！
@@ -253,17 +279,44 @@ jobject Java_com_tencent_mobileqq_persistence_FTSDatatbaseDao_queryFTSMsgs(JNIEn
 
         int istroop = atoi(result[(i + 1) * ncols + 1]);
 
+        if (queryUin != uin || queryIstroop != istroop)
+        {
+            continue;
+        }
+
         long long time = atoll(result[(i + 1) * ncols + 2]);
 
         long long shmsgseq = atoll(result[(i + 1) * ncols + 3]);
 
-        jstring msg = (*env)->NewStringUTF(env, result[(i + 1) * ncols + 4]);
+        char* msg = result[(i + 1) * ncols + 4];
+
+        int ret = -1;
+        int j = 0;
+        for (j = 0; j < len; ++j)
+        {
+            if (strstr(msg, pstr[j]) != NULL)
+            {
+                ret = 0;
+            }
+        }
+        if (ret == -1)
+        {
+            continue;
+        }
+
+        jstring jmsg = (*env)->NewStringUTF(env, msg);
 
         // 构造FTSMsgItem对象
-        jobject msg_obj = (*env)->NewObject(env, msg_clazz, msg_init, uin, istroop, time, shmsgseq, msg);
+        jobject msg_obj = (*env)->NewObject(env, msg_clazz, msg_init, uin, istroop, time, shmsgseq, jmsg);
 
         (*env)->CallBooleanMethod(env, list_obj, list_add, msg_obj);
+
+        // 避免 local reference table overflow (max=512) 错误
+        (*env)->DeleteLocalRef(env, msg_obj);
+        (*env)->DeleteLocalRef(env, jmsg);
     }
+
+    free(pstr);
 
     return list_obj;
 }
