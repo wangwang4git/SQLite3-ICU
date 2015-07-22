@@ -82,9 +82,11 @@ jint Java_com_tencent_mobileqq_persistence_FTSDatatbaseDao_insertFTS(JNIEnv* env
         int rc = sqlite3_prepare_v2(db, zSql, -1, &stmt, 0);
         if (rc != SQLITE_OK)
         {
-            logError(sqlite3_errmsg(db), NULL);
+            logError("Can't prepare stmt, ", sqlite3_errmsg(db));
 
-            sqlite3_close(db);
+            stmt = NULL;
+
+            // sqlite3_close(db);
             return rc;
         }
     }
@@ -144,16 +146,16 @@ jobject Java_com_tencent_mobileqq_persistence_FTSDatatbaseDao_queryFTSGroups(JNI
     (*env)->ReleaseStringUTFChars(env, jsql, sql);
     if (rc != SQLITE_OK)
     {
-        logError(sqlite3_errmsg(db), NULL);
+        logError("Can't query groups, ", sqlite3_errmsg(db));
 
-        sqlite3_close(db);
+        // sqlite3_close(db);
         return list_obj;
     }
 
     // 搜索结果为空
     if (nrows == 0)
     {
-        logInfo("FTS queryFTSGroups: nrows = 0", NULL);
+        logWarn("FTS queryFTSGroups: nrows = 0", NULL);
 
         sqlite3_free_table(result);
         return list_obj;
@@ -219,16 +221,16 @@ jobject Java_com_tencent_mobileqq_persistence_FTSDatatbaseDao_queryFTSMsgs(JNIEn
     (*env)->ReleaseStringUTFChars(env, jsql, sql);
     if (rc != SQLITE_OK)
     {
-        logError(sqlite3_errmsg(db), NULL);
+        logError("Can't query msgs, ", sqlite3_errmsg(db));
 
-        sqlite3_close(db);
+        // sqlite3_close(db);
         return list_obj;
     }
 
     // 搜索结果为空
     if (nrows == 0)
     {
-        logInfo("FTS queryFTSMsgs: nrows = 0", NULL);
+        logWarn("FTS queryFTSMsgs: nrows = 0", NULL);
 
         sqlite3_free_table(result);
         return list_obj;
