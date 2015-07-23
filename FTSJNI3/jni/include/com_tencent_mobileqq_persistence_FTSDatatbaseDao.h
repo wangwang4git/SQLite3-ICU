@@ -25,6 +25,14 @@ JNIEXPORT jint JNICALL Java_com_tencent_mobileqq_persistence_FTSDatatbaseDao_ins
 
 /*
  * Class:     com_tencent_mobileqq_persistence_FTSDatatbaseDao
+ * Method:    insertFTSWithTrans
+ * Signature: (Ljava/util/ArrayList;)I
+ */
+JNIEXPORT jint JNICALL Java_com_tencent_mobileqq_persistence_FTSDatatbaseDao_insertFTSWithTrans
+  (JNIEnv *, jobject, jobject);
+
+/*
+ * Class:     com_tencent_mobileqq_persistence_FTSDatatbaseDao
  * Method:    queryFTSGroups
  * Signature: (Ljava/lang/String;Ljava/lang/String;)Ljava/util/ArrayList;
  */

@@ -74,7 +74,6 @@ jint Java_com_tencent_mobileqq_persistence_FTSDatatbaseDao_initFTS(JNIEnv* env, 
 }
 
 
-// 事务写，参数绑定留待后续
 jint Java_com_tencent_mobileqq_persistence_FTSDatatbaseDao_insertFTS(JNIEnv* env, jobject thiz, jlong juin, jint jistroop, jlong jtime, jlong jshmsgseq, jstring jmsg, jstring jmsgindex)
 {
     long long uin = (long long) juin;
@@ -122,6 +121,134 @@ jint Java_com_tencent_mobileqq_persistence_FTSDatatbaseDao_insertFTS(JNIEnv* env
     logInfo("FTS insert...", NULL);
 
     return 0;
+}
+
+jint Java_com_tencent_mobileqq_persistence_FTSDatatbaseDao_insertFTSWithTrans(JNIEnv* env, jobject thiz, jobject ftsmsglist)
+{
+    // 获取ArrayList class类
+    jclass list_clazz = (*env)->GetObjectClass(env, ftsmsglist);
+
+    // 获取ArrayList类get函数ID
+    jmethodID list_get = (*env)->GetMethodID(env, list_clazz , "get", "(I)Ljava/lang/Object;");
+
+    // 获取ArrayList类size函数ID
+    jmethodID list_size = (*env)->GetMethodID(env, list_clazz , "size", "()I");
+
+    jint list_len = (*env)->CallIntMethod(env, ftsmsglist, list_size);
+
+    if (list_len > 0)
+    {
+        int rc = sqlite3_exec(db, "BEGIN TRANSACTION;", NULL, NULL, NULL);
+        if (rc != SQLITE_OK)
+        {
+            logError("Can't begin transcation, ", sqlite3_errmsg(db));
+        }
+    }
+
+    int i = 0;
+    for (i = 0; i < list_len; ++i)
+    {
+        jobject ftsmsg_obj = (*env)->CallObjectMethod(env, ftsmsglist, list_get, i);
+
+        // 获取FTSMsgItem class类
+        jclass ftsmsg_clazz = (*env)->GetObjectClass(env, ftsmsg_obj);
+
+        // 获取FTSMsgItem类getUin函数ID
+        jmethodID ftsmsg_getUin = (*env)->GetMethodID(env, ftsmsg_clazz, "getUin", "()J");
+
+        // 获取FTSMsgItem类getIstroop函数ID
+        jmethodID ftsmsg_getIstroop = (*env)->GetMethodID(env, ftsmsg_clazz, "getIstroop", "()I");
+
+        // 获取FTSMsgItem类getTime函数ID
+        jmethodID ftsmsg_getTime = (*env)->GetMethodID(env, ftsmsg_clazz, "getTime", "()J");
+
+        // 获取FTSMsgItem类getShmsgseq函数ID
+        jmethodID ftsmsg_getShmsgseq = (*env)->GetMethodID(env, ftsmsg_clazz, "getShmsgseq", "()J");
+
+        // 获取FTSMsgItem类getMsg函数ID
+        jmethodID ftsmsg_getMsg = (*env)->GetMethodID(env, ftsmsg_clazz, "getMsg", "()Ljava/lang/String;");
+
+        // 获取FTSMsgItem类getMsgindex函数ID
+        jmethodID ftsmsg_getMsgindex = (*env)->GetMethodID(env, ftsmsg_clazz, "getMsgindex", "()Ljava/lang/String;");
+
+
+        jlong juin = (*env)->CallLongMethod(env, ftsmsg_obj, ftsmsg_getUin);
+        jint jistroop = (*env)->CallIntMethod(env, ftsmsg_obj, ftsmsg_getIstroop);
+        jlong jtime = (*env)->CallLongMethod(env, ftsmsg_obj, ftsmsg_getTime);
+        jlong jshmsgseq = (*env)->CallLongMethod(env, ftsmsg_obj, ftsmsg_getShmsgseq);
+        jstring jmsg = (jstring)(*env)->CallObjectMethod(env, ftsmsg_obj, ftsmsg_getMsg);
+        jstring jmsgindex = (jstring)(*env)->CallObjectMethod(env, ftsmsg_obj, ftsmsg_getMsgindex);
+
+        long long uin = (long long) juin;
+        int istroop = (int) jistroop;
+        long long msgtime = (long long) jtime;
+        long long shmsgseq = (long long) jshmsgseq;
+        const char* msg = (*env)->GetStringUTFChars(env, jmsg, NULL);
+        const char* msgindex = (*env)->GetStringUTFChars(env, jmsgindex, NULL);
+
+        // 创建sqlite3_stmt
+        if (NULL == stmt)
+        {
+            char* zSql = "INSERT INTO IndexMsg(uin, istroop, time, shmsgseq, msg, msgindex) VALUES(?, ?, ?, ?, ?, ?);";
+            int rc = sqlite3_prepare_v2(db, zSql, -1, &stmt, 0);
+            if (rc != SQLITE_OK)
+            {
+                logError("Can't prepare stmt, ", sqlite3_errmsg(db));
+
+                stmt = NULL;
+
+                // sqlite3_close(db);
+                return rc;
+            }
+        }
+
+        sqlite3_bind_int64(stmt, 1, uin);
+
+        sqlite3_bind_int(stmt, 2, istroop);
+
+        sqlite3_bind_int64(stmt, 3, msgtime);
+
+        sqlite3_bind_int64(stmt, 4, shmsgseq);
+
+        sqlite3_bind_text(stmt, 5, msg, -1, SQLITE_STATIC);
+
+        sqlite3_bind_text(stmt, 6, msgindex, -1, SQLITE_STATIC);
+
+        sqlite3_step(stmt);
+
+        sqlite3_reset(stmt);
+
+        (*env)->ReleaseStringUTFChars(env, jmsgindex, msgindex);
+        (*env)->ReleaseStringUTFChars(env, jmsg, msg);
+
+
+        // 避免 local reference table overflow (max=512) 错误
+        (*env)->DeleteLocalRef(env, jmsgindex);
+        (*env)->DeleteLocalRef(env, jmsg);
+
+        (*env)->DeleteLocalRef(env, ftsmsg_getMsgindex);
+        (*env)->DeleteLocalRef(env, ftsmsg_getMsg);
+        (*env)->DeleteLocalRef(env, ftsmsg_getShmsgseq);
+        (*env)->DeleteLocalRef(env, ftsmsg_getTime);
+        (*env)->DeleteLocalRef(env, ftsmsg_getIstroop);
+        (*env)->DeleteLocalRef(env, ftsmsg_getUin);
+        (*env)->DeleteLocalRef(env, ftsmsg_clazz);
+        (*env)->DeleteLocalRef(env, ftsmsg_obj);
+    }
+
+    if (list_len > 0)
+    {
+        int rc = sqlite3_exec(db, "COMMIT;", NULL, NULL, NULL);
+        if (rc != SQLITE_OK)
+        {
+            logError("Can't commit transcation, ", sqlite3_errmsg(db));
+        }
+    }
+
+    logInfo("FTS trans...", NULL);
+
+    return 0;
+
 }
 
 jobject Java_com_tencent_mobileqq_persistence_FTSDatatbaseDao_queryFTSGroups(JNIEnv* env, jobject thiz, jstring jsql, jstring jclasspath)
