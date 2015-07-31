@@ -60,8 +60,8 @@ jint Java_com_tencent_mobileqq_persistence_FTSDatatbaseDao_initFTS(JNIEnv* env, 
         return errCode;
     }
 
-    char* sql = "CREATE VIRTUAL TABLE IF NOT EXISTS IndexMsg USING fts4(uin, istroop, time, shmsgseq, msg, msgindex, compress=qqcompress, uncompress=qquncompress);";
-    // char* sql = "CREATE VIRTUAL TABLE IF NOT EXISTS IndexMsg USING fts4(uin, istroop, time, shmsgseq, msg, msgindex);";
+    char* sql = "CREATE VIRTUAL TABLE IF NOT EXISTS IndexMsg USING fts4(type, content, contentindex, oid, ext1, ext2，ext3，exts, compress=qqcompress, uncompress=qquncompress);";
+    // char* sql = "CREATE VIRTUAL TABLE IF NOT EXISTS IndexMsg USING fts4(type, content, contentindex, oid, ext1, ext2，ext3，exts);";
     errCode = sqlite3_exec(db, sql, NULL, NULL, NULL);
     if (SQLITE_OK != errCode)
     {
@@ -101,7 +101,6 @@ jint Java_com_tencent_mobileqq_persistence_FTSDatatbaseDao_insertFTS(JNIEnv* env
 
             stmt = NULL;
 
-            // sqlite3_close(db);
             return rc;
         }
     }
@@ -204,7 +203,6 @@ jint Java_com_tencent_mobileqq_persistence_FTSDatatbaseDao_insertFTSWithTrans(JN
 
                 stmt = NULL;
 
-                // sqlite3_close(db);
                 return rc;
             }
         }
@@ -291,7 +289,6 @@ jobject Java_com_tencent_mobileqq_persistence_FTSDatatbaseDao_queryFTSGroups(JNI
     {
         logError("Can't query groups, ", sqlite3_errmsg(db));
 
-        // sqlite3_close(db);
         return list_obj;
     }
 
@@ -369,7 +366,6 @@ jobject Java_com_tencent_mobileqq_persistence_FTSDatatbaseDao_queryFTSMsgs(JNIEn
     {
         logError("Can't query msgs, ", sqlite3_errmsg(db));
 
-        // sqlite3_close(db);
         return list_obj;
     }
 
